@@ -1,6 +1,5 @@
 #![warn(clippy::nursery)] //, clippy::pedantic)]
 #![allow(clippy::cast_precision_loss)]
-#![feature(drain_filter)]
 #![windows_subsystem = "windows"]
 use speedy2d::{
     color::Color,
