@@ -1,0 +1,10 @@
+[package]
+name = "snow"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fastrand = "1.8"
+speedy2d = { version = "1.10.0", git = "https://github.com/kirinokirino/Speedy2D", default-features = false, features = ["windowing-x11", "windowing"] }
