@@ -6,5 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+configparser = "3.0.2"
 fastrand = "1.8"
+lazy_static = "1.4.0"
 speedy2d = { version = "1.10.0", git = "https://github.com/kirinokirino/Speedy2D", default-features = false, features = ["windowing-x11", "windowing"] }

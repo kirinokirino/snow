@@ -1,4 +1,4 @@
-#![warn(clippy::nursery, clippy::pedantic)]
+#![warn(clippy::nursery)] //, clippy::pedantic)]
 #![allow(clippy::cast_precision_loss)]
 #![feature(drain_filter)]
 #![windows_subsystem = "windows"]
@@ -12,24 +12,19 @@ use speedy2d::{
     Graphics2D, Window,
 };
 
-const WINDOW_WIDTH: u32 = 640;
-const WINDOW_HEIGHT: u32 = 360;
-
-const PARTICLE_SIZE: f32 = 1.0;
-const NEW_PARTICLES: f32 = 0.05;
-const GRAVITY: f32 = 0.04;
-const WIND: f32 = 0.3;
-const SLEEP_MS: u64 = 60;
-const STARTING_SPEED: f32 = 0.7;
-const MAX_PARTICLES: usize = 2000;
+mod config;
+use config::SETTINGS;
 
 fn main() {
-    let window_size = UVec2::new(WINDOW_WIDTH, WINDOW_HEIGHT);
+    let window_size = UVec2::new(
+        SETTINGS.read().unwrap().window_width as u32,
+        SETTINGS.read().unwrap().window_height as u32,
+    );
     let window_pixels = WindowSize::PhysicalPixels(window_size);
     let window = Window::new_with_options(
         "FLOATING",
         WindowCreationOptions::new_windowed(window_pixels, Some(WindowPosition::Center))
-            .with_decorations(false)
+            .with_decorations(SETTINGS.read().unwrap().decorations)
             .with_transparent(true),
     )
     .expect("Wasn't able to create a window!");
@@ -61,12 +56,13 @@ impl App {
 
     pub fn update(&mut self) {
         self.wind += Vec2::new(
-            (fastrand::f32() - 0.5) * 2.0 * WIND,
-            (fastrand::f32() - 0.5) * 2.0 * WIND,
+            (fastrand::f32() - 0.5) * 2.0 * SETTINGS.read().unwrap().wind,
+            (fastrand::f32() - 0.5) * 2.0 * SETTINGS.read().unwrap().wind,
         );
 
-        if self.wind.magnitude() >= WIND * 10.0 {
-            self.wind = self.wind.normalize().unwrap() * 10.0 * WIND;
+        if self.wind.magnitude() >= SETTINGS.read().unwrap().wind * 10.0 {
+            self.wind =
+                self.wind.normalize().unwrap_or(Vec2::ZERO) * 10.0 * SETTINGS.read().unwrap().wind;
         }
 
         self.active_particles.iter_mut().for_each(|particle| {
@@ -78,7 +74,7 @@ impl App {
                 particle.pos.x = self.viewport.x as f32 + 40.0
             }
 
-            particle.vel += Vec2::new(0.0, GRAVITY);
+            particle.vel += Vec2::new(0.0, SETTINGS.read().unwrap().gravity);
         });
 
         for mut p in std::mem::take(&mut self.active_particles) {
@@ -86,10 +82,10 @@ impl App {
 
             if is_off_the_bottom_of_the_screen {
                 p.pos.y = self.viewport.y as f32;
-                let x_is_inside_viewport =
-                    p.pos.x >= -PARTICLE_SIZE && p.pos.x <= self.viewport.x as f32 + PARTICLE_SIZE;
-                let y_is_inside_viewport =
-                    p.pos.y >= -PARTICLE_SIZE && p.pos.y <= self.viewport.y as f32 + PARTICLE_SIZE;
+                let x_is_inside_viewport = p.pos.x >= -SETTINGS.read().unwrap().particle_size
+                    && p.pos.x <= self.viewport.x as f32 + SETTINGS.read().unwrap().particle_size;
+                let y_is_inside_viewport = p.pos.y >= -SETTINGS.read().unwrap().particle_size
+                    && p.pos.y <= self.viewport.y as f32 + SETTINGS.read().unwrap().particle_size;
                 if x_is_inside_viewport && y_is_inside_viewport {
                     self.dormant_particles.push(p);
                 }
@@ -101,8 +97,12 @@ impl App {
             }
         }
 
-        if self.dormant_particles.len() >= MAX_PARTICLES {
-            self.dormant_particles.splice(0..500, []);
+        if self.dormant_particles.len() >= SETTINGS.read().unwrap().max_particles {
+            let range_end = self.dormant_particles.len().min(
+                SETTINGS.read().unwrap().max_particles / 10
+                    + SETTINGS.read().unwrap().new_particles as usize,
+            );
+            self.dormant_particles.splice(0..range_end, []);
         }
     }
 
@@ -110,7 +110,7 @@ impl App {
         for particle in &self.dormant_particles {
             graphics.draw_circle(
                 particle.pos,
-                PARTICLE_SIZE,
+                SETTINGS.read().unwrap().particle_size,
                 Color::from_rgba(1.0, 1.0, 1.0, 1.0),
             );
         }
@@ -118,19 +118,18 @@ impl App {
         for particle in &self.active_particles {
             graphics.draw_circle(
                 particle.pos,
-                PARTICLE_SIZE,
+                SETTINGS.read().unwrap().particle_size,
                 Color::from_rgba(1.0, 1.0, 1.0, 1.0),
             );
         }
     }
 
     fn touching_dormant_particle(&self, particle: &Particle) -> Option<Vec2> {
-        for other_particle in self
-            .dormant_particles
-            .iter()
-            .rev()
-            .take((WINDOW_WIDTH as f32 / PARTICLE_SIZE) as usize * 4)
-        {
+        for other_particle in self.dormant_particles.iter().rev().take(
+            (SETTINGS.read().unwrap().window_width as f32 / SETTINGS.read().unwrap().particle_size)
+                as usize
+                * 4,
+        ) {
             let distance = particle.pos - other_particle.pos;
             if distance.magnitude_squared() <= particle.vel.magnitude_squared() {
                 return Some(
@@ -138,7 +137,7 @@ impl App {
                         + Vec2::new(fastrand::f32() - 0.5, -fastrand::f32())
                             .normalize()
                             .unwrap()
-                            * PARTICLE_SIZE,
+                            * SETTINGS.read().unwrap().particle_size,
                 );
             }
         }
@@ -148,15 +147,15 @@ impl App {
 
 impl WindowHandler for App {
     fn on_draw(&mut self, helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
-        for _ in 0..NEW_PARTICLES.floor() as usize {
+        for _ in 0..SETTINGS.read().unwrap().new_particles.floor() as usize {
             self.add_particle(Vec2::new(
-                fastrand::f32() * (self.viewport.x as f32 + 80.0) - 40.0,
+                fastrand::f32().mul_add(self.viewport.x as f32 + 80.0, -40.0),
                 -10.0,
             ));
         }
-        if fastrand::f32() < NEW_PARTICLES.fract() {
+        if fastrand::f32() < SETTINGS.read().unwrap().new_particles.fract() {
             self.add_particle(Vec2::new(
-                fastrand::f32() * (self.viewport.x as f32 + 80.0) - 40.0,
+                fastrand::f32().mul_add(self.viewport.x as f32 + 80.0, -40.0),
                 -10.0,
             ));
         }
@@ -166,7 +165,9 @@ impl WindowHandler for App {
         //graphics.clear_screen(Color::from_rgb(0.3, 0.3, 0.5));
         self.draw(graphics);
 
-        std::thread::sleep(std::time::Duration::from_millis(SLEEP_MS));
+        std::thread::sleep(std::time::Duration::from_millis(
+            SETTINGS.read().unwrap().sleep_ms_per_frame,
+        ));
         helper.request_redraw();
     }
 
@@ -213,8 +214,8 @@ impl Particle {
         Self {
             pos,
             vel: Vec2::new(
-                (fastrand::f32() - 0.5) * STARTING_SPEED,
-                (fastrand::f32() - 0.5) * STARTING_SPEED,
+                (fastrand::f32() - 0.5) * SETTINGS.read().unwrap().starting_speed,
+                (fastrand::f32() - 0.5) * SETTINGS.read().unwrap().starting_speed,
             ),
         }
     }
