@@ -14,13 +14,13 @@ use speedy2d::{
 const WINDOW_WIDTH: u32 = 640;
 const WINDOW_HEIGHT: u32 = 360;
 
-const PARTICLE_SIZE: f32 = 3.0;
+const PARTICLE_SIZE: f32 = 1.0;
 const NEW_PARTICLES: f32 = 0.05;
 const GRAVITY: f32 = 0.04;
 const WIND: f32 = 0.3;
 const SLEEP_MS: u64 = 60;
 const STARTING_SPEED: f32 = 0.7;
-const MAX_PARTICLES: usize = 10000;
+const MAX_PARTICLES: usize = 2000;
 
 fn main() {
     let window_size = UVec2::new(WINDOW_WIDTH, WINDOW_HEIGHT);
