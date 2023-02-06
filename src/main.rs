@@ -21,7 +21,7 @@ fn main() {
     );
     let window_pixels = WindowSize::PhysicalPixels(window_size);
     let window = Window::new_with_options(
-        "FLOATING",
+        "Snowrest",
         WindowCreationOptions::new_windowed(window_pixels, Some(WindowPosition::Center))
             .with_decorations(SETTINGS.read().unwrap().decorations)
             .with_transparent(true),
