@@ -171,6 +171,8 @@ impl WindowHandler for App {
 
     fn on_resize(&mut self, _helper: &mut WindowHelper<()>, size_pixels: UVec2) {
         self.viewport = size_pixels;
+        let mut dormant = std::mem::take(&mut self.dormant_particles);
+        self.active_particles.append(&mut dormant);
     }
 
     fn on_mouse_button_up(
